@@ -1,0 +1,16 @@
+# Ignore compiled output and dependencies
+dist/
+build/
+node_modules/
+
+# Ignore environment files that contain secrets
+.env
+.server.env
+
+# Ignore version control directories
+.git/
+
+# Ignore logs and editor-specific files
+*.log
+.vscode/
+.idea/
