@@ -3,34 +3,37 @@
 # This script defines functions to install and configure WireGuard on Ubuntu.
 # It is intended to be sourced by other scripts.
 
+# Source the common functions file.
+. ./common.sh
+
 install_wireguard() {
     set -e
     if [ "$(id -u)" -ne 0 ]; then
-       echo "This function must be run as root. Please use 'sudo' or log in as root." 1>&2
+       print_error "This function must be run as root. Please use 'sudo'."
        return 1
     fi
-    echo "Starting server update and WireGuard installation for Ubuntu..."
+    print_status "Starting server update and WireGuard installation for Ubuntu..."
 
     # Step 1: Update package lists
-    sudo apt update
+    execute_with_loader "Updating package lists" "sudo apt update"
 
     # Step 2: Install WireGuard and UFW firewall
-    sudo apt install wireguard ufw -y
+    execute_with_loader "Installing WireGuard and UFW" "sudo apt install wireguard ufw -y"
 
     # Step 3: Configure Firewall
-    echo "\nConfiguring firewall rules..."
-    sudo ufw allow 22/tcp
-    sudo ufw allow 51820/udp
-    echo "y" | sudo ufw enable
-    echo "\nFirewall configured and active."
+    print_status "Configuring firewall rules..."
+    sudo ufw allow 22/tcp >/dev/null
+    sudo ufw allow 51820/udp >/dev/null
+    execute_with_loader "Enabling firewall" "echo y | sudo ufw enable"
+    print_status "--> Firewall configured and active."
     
     # Step 4: Enable IP Forwarding
-    echo "\nEnabling IP forwarding..."
+    print_status "Enabling IP forwarding..."
     sudo sed -i -e 's/^#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
-    sudo sysctl -p
-    echo "IP forwarding enabled."
+    sudo sysctl -p >/dev/null
+    print_status "--> IP forwarding enabled."
 
-    echo "\nOperation complete! WireGuard has been installed."
+    print_status "WireGuard packages have been installed."
 }
 
 # -----------------------------------------------------------------------------
@@ -44,24 +47,24 @@ generate_wireguard_configs() {
     local CLIENT_NAME="$2"
 
     if [ -z "$SERVER_ENDPOINT" ] || [ -z "$CLIENT_NAME" ]; then
-        echo "Error: Server IP/domain and Client Name must be provided as arguments." 1>&2
+        print_error "Server IP/domain and Client Name must be provided as arguments."
         return 1
     fi
 
     # --- Check for Root Privileges ---
     if [ "$(id -u)" -ne 0 ]; then
-       echo "This function must be run as root. Please use 'sudo' or log in as root." 1>&2
+       print_error "This function must be run as root. Please use 'sudo'."
        return 1
     fi
 
     if ! command -v wg > /dev/null; then
-        echo "WireGuard tools are not installed. Please run the installer first." 1>&2
+        print_error "WireGuard tools are not installed. Please run the installer first."
         return 1
     fi
 
-    echo "\nStarting WireGuard configuration generation..."
-    echo "  Server Endpoint: $SERVER_ENDPOINT"
-    echo "  Client Name: $CLIENT_NAME"
+    print_status "Starting WireGuard configuration generation..."
+    print_status "  Server Endpoint: $SERVER_ENDPOINT"
+    print_status "  Client Name: $CLIENT_NAME"
 
     # --- Configuration Variables ---
     SERVER_INTERFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
@@ -74,7 +77,7 @@ generate_wireguard_configs() {
     chmod 700 /etc/wireguard
     cd /etc/wireguard
 
-    echo "\nStep 1/3: Generating cryptographic keys..."
+    print_status "Step 1/4: Generating cryptographic keys..."
     wg genkey | tee server_private.key | wg pubkey > server_public.key
     wg genkey | tee "${CLIENT_NAME}_private.key" | wg pubkey > "${CLIENT_NAME}_public.key"
     chmod 600 *_private.key
@@ -86,7 +89,7 @@ generate_wireguard_configs() {
     CLIENT_PUBLIC_KEY=$(cat "${CLIENT_NAME}_public.key")
 
     # --- Create Server Configuration ---
-    echo "Step 2/3: Creating server configuration file (wg0.conf)..."
+    print_status "Step 2/4: Creating server configuration file (wg0.conf)..."
     cat << EOF > /etc/wireguard/wg0.conf
 [Interface]
 Address = ${SERVER_VPN_IP}/${VPN_SUBNET}
@@ -104,7 +107,7 @@ AllowedIPs = ${CLIENT_VPN_IP}/32
 EOF
 
     # --- Create Client Configuration ---
-    echo "Step 3/3: Creating client configuration file (${CLIENT_NAME}.conf)..."
+    print_status "Step 3/4: Creating client configuration file (${CLIENT_NAME}.conf)..."
     cat << EOF > "/etc/wireguard/${CLIENT_NAME}.conf"
 [Interface]
 PrivateKey = ${CLIENT_PRIVATE_KEY}
@@ -119,20 +122,16 @@ PersistentKeepalive = 25
 EOF
 
     # --- Start and Enable the WireGuard Service ---
-    echo "\nStep 4/4: Starting and enabling the WireGuard service..."
+    print_status "Step 4/4: Starting and enabling the WireGuard service..."
     
     # Start the WireGuard interface
     sudo wg-quick up wg0
     
     # Enable the WireGuard service to start on boot
-    sudo systemctl enable wg-quick@wg0.service
+    execute_with_loader "Enabling WireGuard service on boot" "sudo systemctl enable wg-quick@wg0.service"
 
-    echo "\n---------------------------------------------------"
-    echo "✅ Setup complete and WireGuard is now RUNNING!"
-    echo "\n- Server config: /etc/wireguard/wg0.conf"
-    echo "- Client config: /etc/wireguard/${CLIENT_NAME}.conf"
-    echo "\n- The WireGuard service has been started and enabled on boot."
-    echo "\nYour only remaining step:"
-    echo "1. Transfer the '${CLIENT_NAME}.conf' file to your client device."
-    echo "---------------------------------------------------"
+    print_header "✅ WireGuard is now RUNNING! ✅"
+    print_status "Server config: /etc/wireguard/wg0.conf"
+    print_status "Client config: /etc/wireguard/${CLIENT_NAME}.conf"
+    print_status "The service has been started and enabled on boot."
 }
