@@ -31,7 +31,7 @@ yargs(hideBin(process.argv))
         await fs.writeFile(envPath, envContent);
 
         console.log(chalk.cyan.bold(`\n✔ Server environment file created at: ${envPath}`));
-        console.log(chalk.cyan('  You can now run the "install" command.'));
+        console.log(chalk.cyan('  You can now run the "install" command. (i.e. npx ts-node src/run.ts install)'));
 
         console.log(chalk.bold.magenta('\n--- Deployment Process Finished ---'));
       } catch (error) {

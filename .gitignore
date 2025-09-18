@@ -4,6 +4,7 @@
 # Build output
 /dist
 /build
+client1.conf
 
 # Logs
 logs

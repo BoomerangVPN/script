@@ -37,7 +37,7 @@ export const config = {
   },
   // Configuration for the installation scripts
   install: {
-    scriptFiles: ['common.sh', 'init.sh', 'security.sh', 'vpn.sh', 'setup.sh'],
+    scriptFiles: ['common.sh', 'harden.sh', 'setup.sh', 'wireguard.sh'],
     localScriptDir: 'scripts',
     remoteTempDir: '/tmp/setup-scripts',
   },
@@ -51,7 +51,7 @@ const serverEnvConfig = loadEnvFile(serverEnvPath);
 export const serverConfig = {
   host: serverEnvConfig.HOST,
   username: serverEnvConfig.USERNAME,
-  privateKeyPath: serverEnvConfig.PRIVATE_KEY,
+  password: serverEnvConfig.PASSWORD,
   newUser: {
     sshPort: serverEnvConfig.NEW_USER_SSH_PORT,
     name: serverEnvConfig.NEW_USER_NAME,
@@ -60,5 +60,6 @@ export const serverConfig = {
   alerts: {
     email: serverEnvConfig.ALERT_EMAIL,
   },
+  clientName: serverEnvConfig.CLIENT_NAME,
   serverName: serverEnvConfig.SERVER_NAME,
 };
